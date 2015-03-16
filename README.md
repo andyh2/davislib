@@ -1,16 +1,18 @@
 # davislib
-* * *
+
 A Python interface to online UC Davis student services
+
+Requires Python 3
 
 Services currently supported:
 
 - University Registrar
-    - Course search
-    - Course detail
+    - Search courses with custom queries
+    - Fetch details of specific course
 - Sisweb
-    - Final grades
-    - Terms enrolled
-    - Courses enrolled for a given term
+    - List terms both enrolled and completed
+    - List courses enrolled for a given term
+    - Fetch final grades for a given term
 
 ## Examples
 How many more GE units must I take to graduate?
