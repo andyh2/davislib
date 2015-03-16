@@ -1,205 +1,18 @@
+"""
+davislib.apps
+
+Implemented in this module are interfaces for various UC Davis web applications. 
+"""
+from .models import Application, ProtectedApplication, Term, Course
+from bs4 import BeautifulSoup
 import requests
 import re
 import datetime
-from bs4 import BeautifulSoup, element
-from abc import abstractproperty
 from enum import Enum
 
-"""
-Data containers
-"""
-class Term(object):
+class Sisweb(ProtectedApplication):
     """
-    Container for term information
-    """
-    class Session(Enum):
-        """
-        Enum representation of all annual Term sessions
-        """
-        FALL_QUARTER = '10'
-        FALL_SEMESTER = '09'
-        SUMMER_SESSION_2 = '07'
-        SUMMER_SPECIAL = '06'
-        SUMMER_SESSION_1 = '05'
-        SPRING_QUARTER = '03'
-        SPRING_SEMESTER = '02'
-        WINTER_QUARTER = '01'
-
-        @classmethod
-        def values(cls):
-            """
-            Returns list of values ('10', '09') 
-            """
-            return [m.value for m in cls.__members__.values()]
-
-        def __str__(self):
-            return self._name_.replace('_', ' ').title()
-
-    def __init__(self, year, session):
-        """
-        Parameters:
-            year: 
-                e.g. 2014
-            session: Session enumerated constant
-                e.g. Term.Session.FALL_QUARTER
-        """
-        self.session = self.Session(session)
-        self.year = year
-
-    @property
-    def name(self):
-        return '{0} {1}'.format(self.session, self.year)
-
-    def __str__(self):
-        return '{0}{1}'.format(self.year, self.session.value)
-
-    def __eq__(self, other):
-        return str(self.year) == str(other.year) and self.session == other.session
-
-"""
-Base Classes
-"""
-class InvalidLoginError(Exception):
-    pass
-
-class MalformedPageError(Exception):
-    pass
-
-class UCDavisApplication(object):
-    """
-    Base class for UC Davis web app
-    """
-    USER_AGENT=('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537'
-                '.36 (KHTML, like Gecko) Chrome/40.0.2214.115 Safari/537.36')
-
-    def __init__(self, shared_app=None):
-        """
-        Parameters:
-            (optional) shared_app: object deriving from UCDavisApplication 
-                                   whose session will be used in new object
-                                   (Specify this parameter if you wish to share cookies)
-        """
-        if shared_app:
-            if isinstance(shared_app, __class__):
-                self.s = shared_app.s
-            else:
-                raise ValueError("shared_app does not derive from UCDavisApplication")
-        else:
-            self.s = requests.Session()
-            self.s.headers.update({'User-Agent': self.USER_AGENT})
-
-    # @abstractproperty
-    # def base(self):
-    #     """
-    #     Required property for subclasses representing
-    #     first component of application "api" request. 
-    #     This property is used in UCDavisApplication.request.
-    #     """
-    #     raise RuntimeError('{} does not define required property '
-    #                        '"base"'.format(self.__class__))   
-
-    def request(self, method, base, endpoint, **kwargs):
-        return self.s.request(method, ''.join([base, endpoint]), **kwargs)
-
-    def get(self, *args, **kwargs):
-        """
-        Executes GET request on application BASE at endpoint
-        Parameters:
-            see UCDavisApplication.request
-        """
-        return self.request('get', self.__class__.BASE, *args, **kwargs)
-        # return self.s.get(''.join([base, endpoint]), **kwargs)
-
-    def post(self, *args, **kwargs):
-        """
-        Executes POST request on application BASE at endpoint
-        Parameters:
-            see UCDavisApplication.request
-        """
-        return self.request('post', self.__class__.BASE, *args, **kwargs)
-        # return self.s.post(''.join([base, endpoint]), **kwargs)
-
-class UCDavisProtectedApplication(UCDavisApplication):
-    """
-    Base class for UC Davis web app relying on CAS (central authentication service)
-    """         
-    def __init__(self, username=None, password=None, shared_app=None):
-        """
-        Parameters:
-            username: kerberos login id
-            password: kerberos password
-            (optional) shared_app: object deriving from UCDavisApplication
-                                   whose session will be shared with self.
-                                   if derives from UCDavisProtectedApplication,
-                                   then username and password will be copied as well 
-                                   for re-authentication.
-
-        """
-        super(__class__, self).__init__(shared_app=shared_app)
-
-        # Initialize CAS class with self as shared_app
-        # this will share authentication cookies
-        if isinstance(shared_app, __class__):
-            self.auth_service = self.CAS(shared_app.username, 
-                                         shared_app.password, 
-                                         shared_app=self)
-        if username and password: 
-            self.auth_service = self.CAS(username, 
-                                         password, shared_app=self)
-
-    def request(self, method, base, endpoint, **kwargs):
-        """
-        See UCDavisApplication for main functionality
-        Ensures user is authenticated before returning response
-        Parameters:
-            See UCDavisApplication.get
-        """
-        r = super(__class__, self).request(method, base, endpoint, **kwargs)
-
-        if 'cas.ucdavis' not in r.url:
-            # already authed
-            return r
-        else:
-            # re-auth then send request again
-            self.auth_service.auth()
-            return super(__class__, self).request(method, base, endpoint, **kwargs)
-
-    class CAS(UCDavisApplication):
-        BASE='https://cas.ucdavis.edu'
-        LOGIN_ENDPOINT='/cas/login'
-        def __init__(self, username, password, shared_app):
-            super(__class__, self).__init__(shared_app=shared_app)
-
-            self.username = username
-            self.password = password
-
-        def auth(self):
-            auth_page = self.get(self.LOGIN_ENDPOINT)
-            if '<div id="msg" class="success"' in auth_page.text:
-                return # already logged in
-
-            soup = BeautifulSoup(auth_page.text)
-            login_form = soup.find("form", id="fm1")
-
-            data = dict()
-            # Make sure to submit hidden fields
-            for child in login_form.find_all(text=False):
-                if child.has_attr('name') and child.has_attr('value'):
-                    data[child['name']] = child['value']
-
-            data['username'] = self.username
-            data['password'] = self.password
-
-            r = self.post(login_form['action'], data=data)
-            if '<div id="msg" class="success"' not in r.text:
-                raise InvalidLoginError()
-        
-"""
-Sisweb 
-"""
-class Sisweb(UCDavisProtectedApplication):
-    """
-    Wrapper for UC Davis Student Information Service
+    This class provides an interface to the UC Davis Student Information Service
     http://sisweb.ucdavis.edu/
     """
     BASE='https://sisweb.ucdavis.edu/owa_service/owa'
@@ -209,13 +22,6 @@ class Sisweb(UCDavisProtectedApplication):
     REGISTRATION_TERM_SELECT_ENDPOINT='/bwskflib.P_SelDefTerm'
     REGISTRATION_TERM_STORE_ENDPOINT='/bwcklibs.P_StoreTerm'
     COURSE_SCHEDULE_ENDPOINT='/bwskfshd.P_CrseSchdDetl'
-
-    def __init__(self, *args, **kwargs):
-        super(__class__, self).__init__(*args, **kwargs)
-    
-    # @property
-    # def base(self):
-    #     return 'https://sisweb.ucdavis.edu/owa_service/owa'
 
     def request(self, method, base, endpoint, **kwargs):
         """
@@ -228,9 +34,7 @@ class Sisweb(UCDavisProtectedApplication):
 
         # Sisweb redirects to main menu when session ID is expired
         # If the corresponding <meta> exists, fetch page again as session ID is now set. 
-        if re.search('<meta http-equiv="refresh" content="0;'
-                     'url=.*{}'.format(re.escape(self.MAIN_MENU_ENDPOINT)),
-                     r.text):
+        if re.search('<meta http-equiv="refresh" content="0;url=.*', r.text):
             return super(__class__, self).request(method, base, endpoint, **kwargs)
         else:
             return r
@@ -249,9 +53,9 @@ class Sisweb(UCDavisProtectedApplication):
             term: Term object
         """
         soup = BeautifulSoup(text)
-        term_select_ele = soup.find("select", id="term_id") 
+        term_select_ele = soup.find("select", id="term_id")
         term_options = [o['value'] for o in term_select_ele.find_all("option")]
-        if str(term) not in term_options:
+        if term.code not in term_options:
             return False
 
         return True
@@ -265,9 +69,8 @@ class Sisweb(UCDavisProtectedApplication):
             text: HTML page containing tag <select id="term_id">
         """
         soup = BeautifulSoup(text)
-        term_select_ele = soup.find("select", id="term_id") 
+        term_select_ele = soup.find("select", id="term_id")
         term_options = [o['value'] for o in term_select_ele.find_all("option")]
-        
         terms = list()
         for term in term_options:
             # '201410' -> Term('2014', '10')
@@ -302,8 +105,8 @@ class Sisweb(UCDavisProtectedApplication):
         r = self.get(self.REGISTRATION_TERM_SELECT_ENDPOINT)
         if term not in self._term_list(r.text):
             raise ValueError("Invalid term: User does not have enrollment "
-                             "information available for {}".format(term.name))
-        data = {'term_in': str(term)}
+                             "information available for {}".format(term))
+        data = {'term_in': term.code}
         r = self.post(self.REGISTRATION_TERM_STORE_ENDPOINT, 
                       data=data)
 
@@ -333,10 +136,10 @@ class Sisweb(UCDavisProtectedApplication):
         # check if grades available for provided term
         r = self.get(self.GRADE_TERM_SELECT_ENDPOINT)
         if term not in self._term_list(r.text):
-            raise ValueError("User does not have final grades available for {}".format(term.name))
+            raise ValueError("User does not have final grades available for {}".format(term))
 
         # fetch grades page
-        data = {'term_in': str(term)}
+        data = {'term_in': term.code}
         r = self.post(self.GRADE_ENDPOINT, data=data)
         soup = BeautifulSoup(r.text)
 
@@ -348,10 +151,6 @@ class Sisweb(UCDavisProtectedApplication):
                caption.string == "Undergraduate Level - Qtr. Course work"):
                 course_table = table
                 break
-
-        if not course_table:
-            raise MalformedPageError("expected undergraduate course work"
-                                     "table on page {}".format(r.url))
 
         # Extract grades from page
         course_header_row = course_table.find('tr')
@@ -373,38 +172,6 @@ class Sisweb(UCDavisProtectedApplication):
 """
 University Registrar
 """
-class Course(object):
-    """
-    Container for course information
-    """
-    _attrs = ['course_name', 'section', 'course_title', 
-              'instructor', 'subject', 'ge_credit', 'available_seats', 
-              'max_enrollment', 'meetings', 'description',  'final_exam', 'drop_time']
-
-    def __init__(self, crn, term, **attrs):
-        """
-        Parameters:
-            crn: five-digit course reference number
-            term: Term object
-        """
-        self.crn = crn
-        self.term = term
-        
-        i = 0     
-        for k,v in attrs.items():
-            if k in self._attrs:
-                setattr(self, k, v)
-                i += 1
-        
-        if i != len(self._attrs): # If not all attributes provided in kwargs
-            course_complete = Registrar.get_course(crn) # fetch rest of course detail
-            self.__dict__ = course_complete.__dict__.copy()
-
-    def __str__(self):
-        return '{} - {} - {}'.format(self.term, self.course_name, self.course_title)
-
-    def __eq__(self, other):
-        return self.crn == other.crn and self.term == other.term
 
 class InvalidCrnOrTermError(Exception):
     pass
@@ -412,7 +179,7 @@ class InvalidCrnOrTermError(Exception):
 class QueryError(Exception):
     pass
 
-class Registrar(UCDavisApplication):
+class Registrar(Application):
 
     """
     Wrapper for university registrar
@@ -422,13 +189,6 @@ class Registrar(UCDavisApplication):
     COURSE_DETAIL_ENDPOINT='/courses/search/course.cfm'
     COURSE_SEARCH_ENDPOINT='/courses/search/course_search_results_mod8.cfm'
 
-    # @property
-    # def base(self):
-    #     """
-    #     Required base attribute for classes deriving from UCDavisApplication
-    #     """
-    #     return 'https://registrar.ucdavis.edu'
-
     def course_detail(self, crn, term):
         """
         Searches for course with given crn and returns Course object
@@ -437,7 +197,7 @@ class Registrar(UCDavisApplication):
             term: Term object
         """
         params = {'crn': crn,
-                  'termCode': str(term)}
+                  'termCode': term.code}
 
         r = self.get(self.COURSE_DETAIL_ENDPOINT, params=params)
 
@@ -462,10 +222,10 @@ class Registrar(UCDavisApplication):
             end: latest desired end time, as hour in 24hr format
             days: [QueryOptions.Days, ...]
             only_open: boolean
-            level: CourseQueryOptions.Levels
+            level: QueryOptions.Levels
             units: int in [1,9]
             only_virtual: boolean
-            ge_credit: [CourseQueryOptions.GECredit, ...]
+            ge_credit: [QueryOptions.GECredit, ...]
         """
         if type(term) is not Term:
             raise ValueError("provided term is not an instance of Term class")
@@ -586,8 +346,15 @@ class Registrar(UCDavisApplication):
                 elif item == 'Instructor:':
                     course_attrs['instructor'] = cell.contents[4]
 
-                elif item == 'Units: ':
-                    course_attrs['units'] = cell.contents[2]
+                elif item == 'Units:':
+                    try:
+                        course_attrs['units'] = float(cell.contents[2])
+                    except ValueError:
+                        range_ = cell.contents[2].split(' TO ') # Units are also provided as range
+                        if len(range_) == 2:
+                            course_attrs['units'] = tuple([float(n) for n in range_])
+                        else: # Can't parse units
+                            course_attrs['units'] = cell.contents[2]
 
                 elif 'New GE Credit' in item:
                     for ge_content in cell.contents[1:]:
@@ -595,14 +362,17 @@ class Registrar(UCDavisApplication):
                             course_attrs['ge_credit'].append(ge_content)
 
                 elif item == 'Available Seats:':
-                    course_attrs['available_seats'] = cell.contents[1]
+                    course_attrs['available_seats'] = int(cell.contents[1])
 
                 elif item == 'Maximum Enrollment:':
-                    course_attrs['max_enrollment'] = cell.contents[1]
+                    course_attrs['max_enrollment'] = int(cell.contents[1])
 
                 elif item == 'Final Exam:':
                     date = '{0} {1}'.format(term.year, ' '.join(cell.contents[1].split())) 
-                    course_attrs['final_exam'] = datetime.datetime.strptime(date, '%Y %A, %B %d at %I:%M %p')
+                    try:
+                        course_attrs['final_exam'] = datetime.datetime.strptime(date, '%Y %A, %B %d at %I:%M %p')
+                    except ValueError:
+                        course_attrs['final_exam'] = 'See Instructor'
 
                 elif item == 'Description:':
                     course_attrs['description'] = cell.contents[3]
@@ -616,13 +386,20 @@ class Registrar(UCDavisApplication):
         meeting_rows = meetings_table.find_all('tr')[1:] # all rows after the header
         for row in meeting_rows:
             cells = row.find_all('td')
-            day, hours, location = cells
-            course_attrs['meetings'].append( (day.contents, hours.contents, location.contents) )
+            days, hours, location = cells
+            meeting = dict()
+            meeting['days'] = days.string
+            meeting['hours'] = hours.string
+            meeting['location'] = location.string
+            course_attrs['meetings'].append(meeting)
 
         return course_attrs
 
     class QueryOptions(object):
         class GECredit(Enum):
+            """
+            Enum representation of all GE credit areas
+            """
             AH = ('G3AH', 'Arts & Humanities') 
             SE = ('G3SE', 'Science & Engineering')
             SS = ('G3SS', 'Social Sciences') 
@@ -648,9 +425,3 @@ class Registrar(UCDavisApplication):
             UPPER_DIV_1 = '100-199'
             UPPER_DIV_2 = '200-299'
             UPPER_DIV_3 = '300-399'
-
-"""
-Schedule Builder
-"""
-class ScheduleBuilder(UCDavisProtectedApplication):
-    pass
