@@ -68,13 +68,29 @@ Sean Davis
 I'm not a morning person. Which spring ECS classes start after 2pm?
 ```python
 >>> from davislib import Registrar, Term
->>> from davislib.registrar import QueryOptions
 >>> r = Registrar()
 >>> term = Term(2015, Term.Session.SPRING_QUARTER)
 >>> crns = r.course_query(term, subject='ECS', start=14)
 >>> courses = [r.course_detail(term, crn) for crn in crns]
 >>> [course.name for course in courses]
 ['ECS 030 A02', 'ECS 030 A06', 'ECS 040 A01', 'ECS 050 A01', 'ECS 060 A02', 'ECS 120 001', 'ECS 122A 001', 'ECS 122B 001', 'ECS 153 001', 'ECS 160 001', 'ECS 160 001', 'ECS 251 001']
+```
+
+I want a lower division course satisfying Arts & Humanities and Visual Literacy GE credit for the spring. Roll the dice!
+```python
+>>> import random
+>>> from davislib import Registrar, Term
+>>> from davislib.registrar import QueryOptions
+>>> r = Registrar()
+>>> term = Term(2015, Term.Session.SPRING_QUARTER)
+>>> ge_areas = [QueryOptions.GEArea.AH, QueryOptions.GEArea.VL]
+>>> crns = r.course_query(term, 
+...                       level=QueryOptions.Level.LOWER_DIV,
+...                       ge_areas=ge_areas)
+>>> course = r.course_detail(term, random.choice(crns))
+>>> str(course)
+'MUS 024C 001: Intro Music History -- CRN 53159 (Spring Quarter 2015)'
+
 ```
 ## Running on CSIF
 If you're a Davis CS student, run the following commands on a CSIF computer to install davislib.

@@ -53,7 +53,7 @@ class Term(object):
     @property
     def code(self):
         """
-        Returns term code, used by 
+        Returns term code, used by applications to identify term
         """
         return '{0}{1}'.format(self.year, self.session.value)
     
@@ -79,7 +79,7 @@ class Course(object):
             'units',
             'instructor',
             'subject',
-            'ge_credit',
+            'ge_areas',
             'available_seats',
             'max_enrollment',
             'meetings',
@@ -132,7 +132,7 @@ class Course(object):
 
         #: List of GE credit satisfied
         #: e.g. ['Arts & Humanities', 'Oral Literacy']
-        self.ge_credit = attrs['ge_credit']
+        self.ge_areas = attrs['ge_areas']
 
         #: Number of available seats
         #: e.g. 30
@@ -161,7 +161,10 @@ class Course(object):
         self.drop_time = attrs['drop_time']
 
     def __str__(self):
-        return '{} - {} - {}'.format(self.term, self.course_name, self.course_title)
+        return '{}: {} -- CRN {} ({})'.format(self.name, 
+                                               self.title,
+                                               self.crn, 
+                                               self.term)
 
     def __repr__(self):
         return '<Course {} ({})>'.format(self.crn, repr(self.term))

@@ -48,20 +48,22 @@ class Registrar(Application):
         Queries university registrar and returns list of course CRNs
         Parameters:
             term: Term object
-            crn: five digit course reference number
-            course_name: partial or complete course name, 
-                         e.g. 'ASA' or 'ASA 001'
-            course_title: course title, e.g. Intro to Programming
-            instructor: first or last name
-            subject: str
-            start: earliest desired start time, as hour in 24-hr format
-            end: latest desired end time, as hour in 24hr format
-            days: [QueryOptions.Days, ...]
-            only_open: boolean
-            level: QueryOptions.Levels
-            units: int in [1,9]
-            only_virtual: boolean
-            ge_credit: [QueryOptions.GECredit, ...]
+            kwargs:
+                crn: five digit course reference number
+                name: partial or complete course name, 
+                             e.g. 'ASA' or 'ASA 001'
+                title: course title, e.g. Intro to Programming
+                instructor: first or last name
+                subject: course subject in short form
+                         e.g. 'ECS'
+                start: earliest desired start time, as hour in 24-hr format
+                end: latest desired end time, as hour in 24hr format
+                days: list [QueryOptions.Day, ...]
+                only_open: boolean
+                level: QueryOptions.Level
+                units: int in [1,9]
+                only_virtual: boolean
+                ge_areas: list [QueryOptions.GEArea, ...]
         """
         if type(term) is not Term:
             raise ValueError("provided term is not an instance of Term class")
@@ -86,8 +88,8 @@ class Registrar(Application):
 
     def _map_params(self, term,
         crn=None, 
-        course_name=None, 
-        course_title=None,
+        name=None, 
+        title=None,
         instructor=None,
         subject=None,
         start=None,
@@ -97,7 +99,7 @@ class Registrar(Application):
         level=None,
         units=None,
         only_virtual=None,
-        ge_credit=None):
+        ge_areas=None):
         """
         Maps the user-provided search query to a dictionary whose 
         keys are identical to the registrar's form input names.
@@ -108,9 +110,9 @@ class Registrar(Application):
         params['termCode'] = term.code
         if crn: # CRN and Course Name are provided in same field. If CRN is provided, give it precedence.
             params['course_number'] = crn
-        elif course_name:
-            params['course_number'] = course_name
-        params['course_title'] = course_title
+        elif name:
+            params['course_number'] = name
+        params['course_title'] = title
         params['instructor'] = instructor
         params['subject'] = subject
         
@@ -139,16 +141,22 @@ class Registrar(Application):
 
         if only_open:
             params['course_status'] = 'Open'
-
-        params['course_level'] = level
+        
+        if level:
+            params['course_level'] = level.value
+        
         params['course_units'] = units
 
         if only_virtual:
             params['virtual'] = 'Y'
 
-        if ge_credit:
-            for category in ge_credit:
-                params[category.value[0]] = 'Y' 
+        if ge_areas:
+            try:
+                for area in ge_areas:
+                    params[area.value[0]] = 'Y' 
+            except TypeError: # TypeError due to ge_credit not being iterable
+                # Only one ge_credit value supplied
+                params[ge_areas.value] = 'Y'
 
         return params
         
@@ -171,13 +179,16 @@ class Registrar(Application):
         if len(name_components) == 3:
             attrs['section'] = name_components[2]
 
-        attrs['ge_credit'] = list()
+        attrs['ge_areas'] = list()
 
         # Simple key, value attributes
         for cell in soup.find_all('td'):
             strong = cell.find('strong')
             if strong:
-                item = strong.string.strip()
+                try:
+                    item = strong.string.strip()
+                except AttributeError:
+                    item = strong.contents[0].strip()
                 for i, c in enumerate(cell.contents):
                     # Strip whitespace from all text elements
                     strip_op = getattr(c, "strip", None)
@@ -203,7 +214,7 @@ class Registrar(Application):
                 elif 'New GE Credit' in item:
                     for ge_content in cell.contents[1:]:
                         if isinstance(ge_content, str) and len(ge_content):
-                            attrs['ge_credit'].append(ge_content)
+                            attrs['ge_areas'].append(ge_content)
 
                 elif item == 'Available Seats:':
                     attrs['available_seats'] = int(cell.contents[1])
@@ -240,7 +251,7 @@ class Registrar(Application):
         return attrs
 
 class QueryOptions(object):
-    class GECredit(Enum):
+    class GEArea(Enum):
         """
         Enum representation of all GE credit areas
         """
