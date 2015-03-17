@@ -58,7 +58,7 @@ Who's teaching ECS 60 in the Spring?
 >>> from davislib import Registrar, Term
 >>> r = Registrar()
 >>> term = Term(2015, Term.Session.SPRING_QUARTER)
->>> crns = r.course_query(term, course_name="ECS 60")
+>>> crns = r.course_query(term, name="ECS 60")
 >>> assert len(crns) > 0
 >>> course = r.course_detail(term, crns[0])
 >>> course.instructor
