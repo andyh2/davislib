@@ -53,7 +53,7 @@ def category_conflicts(course):
     cat_found = dict.fromkeys(GE_AREAS.keys(), False)
     conflicts = list()
 
-    for area in course.ge_credit:
+    for area in course.ge_areas:
         for cat, areas in GE_AREAS.items():
             if cat not in conflicts and area in areas:
                 if cat_found[cat] == 1:
@@ -137,7 +137,7 @@ def fix_conflicts(area_credit, flagged):
     """
     for (category, courses) in flagged.items():
         for course in courses:
-            conflicts = [area for area in course.ge_credit if area
+            conflicts = [area for area in course.ge_areas if area
                          in GE_AREAS[category]]
             min_ = conflicts[0]
             for (area, units) in area_credit.items():
@@ -173,7 +173,7 @@ def add_term_credit(area_credit, flagged, sw, reg, term):
             for cat in cat_conflicts:
                 flagged[cat].append(course)
 
-            for area in course.ge_credit:
+            for area in course.ge_areas:
                 if area in area_credit.keys():
                     conflict_area_nested = [GE_AREAS[cat] for cat in cat_conflicts]
                     conflict_areas = itertools.chain.from_iterable(conflict_area_nested)
