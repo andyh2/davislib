@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup
 import datetime
 import re
 from enum import Enum
+import logging
 
 class InvalidCrnOrTermError(Exception):
     pass
@@ -104,7 +105,7 @@ class Registrar(Application):
         Maps the user-provided search query to a dictionary whose 
         keys are identical to the registrar's form input names.
         Used to submit the search form. 
-        """
+        """#
         params = dict()
         params['termYear'], params['term'] = term.year, term.session.value
         params['termCode'] = term.code
@@ -179,8 +180,11 @@ class Registrar(Application):
         if len(name_components) == 3:
             attrs['section'] = name_components[2]
 
-        attrs['ge_areas'] = list()
+        # Set defaults for optional attributes
 
+        attrs['ge_areas'] = list()
+        attrs['available_seats'] = None
+        attrs['max_enrollment'] = None
         # Simple key, value attributes
         for cell in soup.find_all('td'):
             strong = cell.find('strong')

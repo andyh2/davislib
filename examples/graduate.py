@@ -24,7 +24,7 @@ AREA_MINIMUMS = {
     'World Cultures': 3,
     'Quantitative Literacy': 3,
     'Scientific Literacy': 3
-    }
+}
 
 GE_AREAS = {
     'Topical Breadth': [
@@ -40,8 +40,7 @@ GE_AREAS = {
        'World Cultures',
        'Quantitative Literacy',
        'Scientific Literacy']
-    }
-
+}
 
 def category_conflicts(course):
     """
@@ -49,7 +48,6 @@ def category_conflicts(course):
     if course satisfies more than one area inside one of those categories.
     A completed course of this nature may only count towards one area within the category.
     """
-
     cat_found = dict.fromkeys(GE_AREAS.keys(), False)
     conflicts = list()
 
@@ -202,5 +200,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-            
