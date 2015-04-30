@@ -76,16 +76,14 @@ class Registrar(Application):
 
         courses = list()
         for row in soup.find_all('tr'):
-            for cell in row.find_all('td'):
-                if len(cell.contents) and 'Please refine' in cell.contents[0]:
-                    raise QueryError('Registrar response: "{}"'.format(cell.string))
-                strong = cell.find('strong')
-                if strong:
-                    match = re.match('\d+', str(strong.string))
-                    if match:
-                        courses.append(match.group(0))
+            cell = row.find('td')
+            if len(cell.contents) and 'Please refine' in cell.contents[0]:
+                raise QueryError('Registrar response: "{}"'.format(cell.string))
+            if 'onclick' in cell.attrs.keys():
+                match = re.search(r'crn=(.+?)&', cell['onclick'])
+                courses.append(match.group(1))
 
-        return courses
+        return list(set(courses)) # CRNs are unique
 
     def _map_params(self, term,
         crn=None, 

@@ -69,8 +69,6 @@ class Term(object):
 class Course(object):
     """
     Container for course information
-    Attributes:
-
     """
     _attrs = ['name', 
             'number',
@@ -170,7 +168,7 @@ class Course(object):
         return '<Course {} ({})>'.format(self.crn, repr(self.term))
 
     def __eq__(self, other):
-        return self.crn == other.crn and self.term == other.term
+        return (self.crn == other.crn and self.term == other.term) 
 
 """
 Applications
@@ -227,7 +225,7 @@ class ProtectedApplication(Application):
     """
     Base class for UC Davis web app relying on CAS (central authentication service)
     """         
-    def __init__(self, username=None, password=None, shared_app=None):
+    def __init__(self, username, password, shared_app=None):
         """
         Parameters:
             username: kerberos login id
