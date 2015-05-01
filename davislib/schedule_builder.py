@@ -32,7 +32,7 @@ class ScheduleBuilder(ProtectedApplication):
         crns = list()
         
         for match in matches:
-            courses.append(match.group(1))
+            crns.append(match.group(1))
 
         return crns
     
