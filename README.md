@@ -42,7 +42,7 @@ Fetch Term Grades
 ```python
 >>> from davislib import Sisweb, Term
 >>> sw = Sisweb("kerberos username", "kerberos password")
->>> term = Term(2014, Term.Session.FALL_QUARTER)
+>>> term = Term(2014, 'fall')
 >>> sw.grades(term)
 {'40658': {'units_enrolled': 4.0, 
           'units_attempted': 4.0, 
@@ -57,7 +57,7 @@ Who's teaching ECS 60 in the Spring?
 ```python
 >>> from davislib import Registrar, Term
 >>> r = Registrar()
->>> term = Term(2015, Term.Session.SPRING_QUARTER)
+>>> term = Term(2015, 'spring')
 >>> crns = r.course_query(term, name="ECS 60")
 >>> assert len(crns) > 0
 >>> course = r.course_detail(term, crns[0])
@@ -69,7 +69,7 @@ I'm not a morning person. Which spring ECS classes start after 2pm?
 ```python
 >>> from davislib import Registrar, Term
 >>> r = Registrar()
->>> term = Term(2015, Term.Session.SPRING_QUARTER)
+>>> term = Term(2015, 'spring')
 >>> crns = r.course_query(term, subject='ECS', start=14)
 >>> courses = [r.course_detail(term, crn) for crn in crns]
 >>> [course.name for course in courses]
@@ -82,7 +82,7 @@ I want a lower division course satisfying Arts & Humanities and Visual Literacy 
 >>> from davislib import Registrar, Term
 >>> from davislib.registrar import QueryOptions
 >>> r = Registrar()
->>> term = Term(2015, Term.Session.SPRING_QUARTER)
+>>> term = Term(2015, 'spring')
 >>> ge_areas = [QueryOptions.GEArea.AH, QueryOptions.GEArea.VL]
 >>> crns = r.course_query(term, 
 ...                       level=QueryOptions.Level.LOWER_DIV,

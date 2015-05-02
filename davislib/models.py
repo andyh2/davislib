@@ -12,41 +12,60 @@ from enum import Enum
 """
 Data containers
 """
+class Session(Enum):
+    """
+    Enum representation of all annual Term sessions
+    """
+    FALL_QUARTER = '10'
+    FALL_SEMESTER = '09'
+    SUMMER_SESSION_2 = '07'
+    SUMMER_SPECIAL = '06'
+    SUMMER_SESSION_1 = '05'
+    SPRING_QUARTER = '03'
+    SPRING_SEMESTER = '02'
+    WINTER_QUARTER = '01'
+
+    @classmethod
+    def values(cls):
+        """
+        Returns list of values ('10', '09') 
+        """
+        return [m.value for m in cls.__members__.values()]
+
+    def __str__(self):
+        return self._name_.replace('_', ' ').title()
+
 class Term(object):
     """
     Container for term information
     """
-    class Session(Enum):
-        """
-        Enum representation of all annual Term sessions
-        """
-        FALL_QUARTER = '10'
-        FALL_SEMESTER = '09'
-        SUMMER_SESSION_2 = '07'
-        SUMMER_SPECIAL = '06'
-        SUMMER_SESSION_1 = '05'
-        SPRING_QUARTER = '03'
-        SPRING_SEMESTER = '02'
-        WINTER_QUARTER = '01'
-
-        @classmethod
-        def values(cls):
-            """
-            Returns list of values ('10', '09') 
-            """
-            return [m.value for m in cls.__members__.values()]
-
-        def __str__(self):
-            return self._name_.replace('_', ' ').title()
+    SESSION_MAPPINGS = {'fall': Session.FALL_QUARTER,
+                        'fall semester': Session.FALL_SEMESTER,
+                        'summer 2': Session.SUMMER_SESSION_2,
+                        'summer special': Session.SUMMER_SPECIAL,
+                        'summer 1': Session.SUMMER_SESSION_1,
+                        'spring': Session.SPRING_QUARTER,
+                        'spring semester': Session.SPRING_SEMESTER,
+                        'winter': Session.WINTER_QUARTER}
 
     def __init__(self, year, session):
         """
         Parameters:
             year: 
                 e.g. 2014
-            session: Session enumerated constant
-                e.g. Term.Session.FALL_QUARTER
+            session: string or Session object
+                valid strings:
+                'fall' -> Fall quarter
+                'fall semester' -> Fall semester
+                'summer 2' -> Second summer session
+                'summer special' -> Special summer session
+                'summer 1' -> first summer session
+                'spring' -> spring quarter
+                'spring semeseter' -> spring semester
+                'winter' -> winter quarter
         """
+        # Maps session string to Session object
+        session = self.SESSION_MAPPINGS.get(session, session)
         self.session = self.Session(session)
         self.year = year
 
@@ -65,6 +84,8 @@ class Term(object):
 
     def __eq__(self, other):
         return str(self.year) == str(other.year) and self.session == other.session
+
+Term.Session = Session # backwards compatibility 
 
 class Course(object):
     """
