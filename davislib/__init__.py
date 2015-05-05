@@ -5,4 +5,5 @@ __author__ = 'Andy Haden'
 from . import registrar
 from .registrar import Registrar
 from .sisweb import Sisweb
-from .models import Term
+from .schedule_builder import ScheduleBuilder
+from .models import Term, Session
