@@ -10,6 +10,9 @@ import itertools
 import time
 from datetime import datetime
 
+class RegistrationError(Exception):
+    pass
+
 class ScheduleBuilder(ProtectedApplication):
     """
     Interface to Schedule Builder
@@ -19,7 +22,9 @@ class ScheduleBuilder(ProtectedApplication):
     ADD_COURSE_ENDPOINT='/addCourseToSchedule.cfm'
     REMOVE_COURSE_ENDPOINT='/removeCourseFromSchedule.cfm'
     HOME_ENDPOINT='/index.cfm'
-
+    REGISTRATION_ERRORS=['You are already enrolled or waitlisted for this course',
+                         'Registration is not yet available for this term',
+                         'Could not register you for this course']
     def registered_courses(self, term):
         """
         Returns list of CRNs of registered courses for term
@@ -40,6 +45,8 @@ class ScheduleBuilder(ProtectedApplication):
         """
         Returns tuple (datetime object for pass 1, datetime object for pass 2)
         If passtimes are not available, returns None
+        Parameters:
+            term: Term object
         """
         params = {'termCode': term.code}
         r = self.get(self.HOME_ENDPOINT, params=params)
@@ -56,14 +63,18 @@ class ScheduleBuilder(ProtectedApplication):
             args = [(int(a), int(b)) for a,b in args]
             return (datetime(*[a[0] for a in args]),
                     datetime(*[a[1] for a in args]))
-        except IndexError:
+        except AttributeError:
             return None
 
-    def schedules(self, term):
+    def schedules(self, term, include_units=False):
         """
-        Returns dictionary of schedules with schedule names as keys and lists of tuple (CRN, units) as values
+        Returns dictionary of schedules with schedule names as keys and lists of CRNs as values
         Parameters:
             term: Term object
+            include_units: Optional boolean parameter. 
+                            If True, returned dictionary includies lists of tuple (CRN, units) as values.
+                            Useful if returned courses are used in registration, as both CRN and course 
+                            units are required. 
         """
         params = {'termCode': term.code}
         r = self.get(self.HOME_ENDPOINT, params=params)
@@ -87,61 +98,77 @@ class ScheduleBuilder(ProtectedApplication):
             course_match = None
             for course_match in course_re.finditer(r.text, name_match.start(), end):
                 crn = course_match.group(1)
-                units = int(course_match.group(2))
-
-                schedules[name].append((crn, units))    
+                if include_units:
+                    units = int(course_match.group(2))
+                    schedules[name].append((crn, units))    
+                else:
+                    schedules[name].append(crn)
 
         return schedules
 
-    def add_course(self, term, schedule_name, crn):
+    def add_course(self, term, schedule, crn):
         """
         Adds course to schedule
         Parameters:
             term: Term object
-            schedule_name: Name of schedule
+            schedule: Name of schedule
             crn: course registration number of course to be added
         """ 
         query = {'Term': term.code,
-                 'Schedule': schedule_name,
+                 'Schedule': schedule,
                  'CourseID': crn,
                  'ShowDebug': 0,
                  '_': int(float(time.time()) * 10**3)}
 
         self.get(self.ADD_COURSE_ENDPOINT, params=query)
 
-    def remove_course(self, term, schedule_name, crn):
+    def remove_course(self, term, schedule, crn):
         """
         Removes course from schedule
         Parameters:
             term: Term object
-            schedule_name: Name of schedule
+            schedule: Name of schedule
             crn: course registration number of course to be removed
         """
         query = {'Term': term.code,
-                 'Schedule': schedule_name,
+                 'Schedule': schedule,
                  'CourseID': crn,
                  'ShowDebug': 0,
                  '_': int(float(time.time()) * 10**3)}
 
         self.get(self.REMOVE_COURSE_ENDPOINT, params=query)
+    
+    def register_schedule(self, term, schedule, allow_waitlisting=True, at=None):
+        """
+        Registers all classes in provided schedule
+        Parameters:
+            term: Term object
+            schedule: name of schedule. case sensitive
+            allow_waitlisting: True/False, indicating if courses should be registered even if student will
+                                            be placed on waitlist
+            at: optional datetime object indicating future time at which registration will be executed
+                    useful if you want to register at pass time
+        """
+        items = self.schedules(term, include_units=True)[schedule]
+        self.register_courses(term, schedule, items, allow_waitlisting, at)
 
-    def register(self, term, schedule_name, items, allow_waitlisting=True, at=None):
+    def register_courses(self, term, schedule, items, allow_waitlisting=True, at=None):
         """
         Registers all classes provided in 'items'
         Parameters:
             term: Term object
-            schedule_name: name of schedule containing courses. 
+            schedule: name of schedule containing courses. 
             items: list of tuple (crn, units) 
                     (note: tuples are provided in returned dictionary from ScheduleBuilder.schedules)
             allow_waitlisting: True/False, indicating if courses should be registered even if student will
                                             be placed on waitlist
             at: optional datetime object indicating future time at which registration will be executed
-                    useful if you're setting a cronjob
+                    useful if you want to register at pass time
         """
         crns, units = zip(*items)
         query = {'Term': term.code,
                  'CourseCRNs': ','.join([str(x) for x in crns]),
-                 'Schedule': schedule_name,
+                 'Schedule': schedule,
                  'WaitlistedFlags': 'Y' if allow_waitlisting else 'N',
                  'Units': ','.join([str(x) for x in units]),
                  'ShowDebug': 0,
@@ -149,7 +176,12 @@ class ScheduleBuilder(ProtectedApplication):
                  }
 
         if at:
-            seconds = at - datetime.now()
-            time.sleep(seconds.total_seconds()) 
+            seconds = (at - datetime.now()).total_seconds()
+            if seconds > 0:
+                time.sleep(seconds) 
 
         r = self.get(self.REGISTER_ENDPOINT, params=query)
+        # Error checking
+        for e in self.REGISTRATION_ERRORS:
+            if e in r.text:
+                raise RegistrationError(e)
