@@ -169,11 +169,11 @@ class Registrar(Application):
         attrs = dict()
 
         header = soup.find('h1')
-        attrs['name'] = header.find('strong').string
         attrs['title'] = header.contents[1][3:]
-        
-        name_components = attrs['name'].split(' ')
-        attrs['number'] = name_components[1]
+        full_name = str(header.find('strong').string)
+
+        name_components = full_name.split(' ')
+        attrs['name'] = '{} {}'.format(*name_components[:2])        attrs['number'] = name_components[1]
         attrs['section'] = None
         if len(name_components) == 3:
             attrs['section'] = name_components[2]
