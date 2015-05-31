@@ -247,7 +247,7 @@ class Registrar(Application):
             meeting = dict()
             meeting['days'] = days.string
             meeting['hours'] = hours.string
-            meeting['location'] = location.string
+            meeting['location'] = location.string.strip()
             attrs['meetings'].append(meeting)
 
         return attrs
