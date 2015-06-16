@@ -173,7 +173,8 @@ class Registrar(Application):
         full_name = str(header.find('strong').string)
 
         name_components = full_name.split(' ')
-        attrs['name'] = '{} {}'.format(*name_components[:2])        attrs['number'] = name_components[1]
+        attrs['name'] = '{} {}'.format(*name_components[:2])        
+        attrs['number'] = name_components[1]
         attrs['section'] = None
         if len(name_components) == 3:
             attrs['section'] = name_components[2]
