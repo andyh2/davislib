@@ -78,7 +78,7 @@ class ScheduleBuilder(ProtectedApplication):
         """
         params = {'termCode': term.code}
         r = self.get(self.HOME_ENDPOINT, params=params)
-        soup = BeautifulSoup(r.text)
+        soup = BeautifulSoup(r.text, 'html.parser')
         schedules = dict()
         # Finding schedule names
         name_matches = list(re.finditer('Schedules\[Schedules\.length\] = \{"Name":"(.+?)"',

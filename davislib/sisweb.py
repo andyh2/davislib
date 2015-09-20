@@ -50,7 +50,7 @@ class Sisweb(ProtectedApplication):
             text: html content of term select page
             term: Term object
         """
-        soup = BeautifulSoup(text)
+        soup = BeautifulSoup(text, 'html.parser')
         term_select_ele = soup.find("select", id="term_id")
         term_options = [o['value'] for o in term_select_ele.find_all("option")]
         if term.code not in term_options:
@@ -66,7 +66,7 @@ class Sisweb(ProtectedApplication):
         Parameters:
             text: HTML page containing tag <select id="term_id">
         """
-        soup = BeautifulSoup(text)
+        soup = BeautifulSoup(text, 'html.parser')
         term_select_ele = soup.find("select", id="term_id")
         term_options = [o['value'] for o in term_select_ele.find_all("option")]
         terms = list()
@@ -110,7 +110,7 @@ class Sisweb(ProtectedApplication):
 
         # Fetch course list
         r = self.get(self.COURSE_SCHEDULE_ENDPOINT)
-        soup = BeautifulSoup(r.text)
+        soup = BeautifulSoup(r.text, 'html.parser')
         course_tables = soup.find_all("table", 
                                       class_="datadisplaytable", 
                                       attrs={"summary": re.compile(".*course detail$")})
@@ -139,7 +139,7 @@ class Sisweb(ProtectedApplication):
         # fetch grades page
         data = {'term_in': term.code}
         r = self.post(self.GRADE_ENDPOINT, data=data)
-        soup = BeautifulSoup(r.text)
+        soup = BeautifulSoup(r.text, 'html.parser')
 
         course_table = None
         # loop until correct table is found

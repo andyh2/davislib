@@ -72,7 +72,7 @@ class Registrar(Application):
         query = self._map_params(term, **kwargs)
         r = self.post(self.COURSE_SEARCH_ENDPOINT,
                       data=query)
-        soup = BeautifulSoup(r.text)
+        soup = BeautifulSoup(r.text, 'html.parser')
 
         courses = list()
         for row in soup.find_all('tr'):
@@ -165,7 +165,7 @@ class Registrar(Application):
             raise InvalidCrnOrTermError()
             return None
 
-        soup = BeautifulSoup(course_html)
+        soup = BeautifulSoup(course_html, 'html.parser')
         attrs = dict()
 
         header = soup.find('h1')
