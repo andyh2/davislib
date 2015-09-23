@@ -236,7 +236,12 @@ class Registrar(Application):
                     attrs['description'] = cell.contents[3]
 
                 elif item == 'Course Drop:':
-                    attrs['drop_time'] = cell.contents[1]
+                    drop_text = cell.contents[1]
+                    match = re.match(r'^([0-9]+)', drop_text)
+                    if match:
+                        attrs['drop_time'] = int(match.group(1))
+                    else:
+                        attrs['drop_time'] = drop_text
 
         # Meeting times
         attrs['meetings'] = list()
