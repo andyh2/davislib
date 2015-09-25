@@ -83,7 +83,7 @@ class Term(object):
         return '<Term {}>'.format(self.code)
 
     def __eq__(self, other):
-        return str(self.year) == str(other.year) and self.session == other.session
+        return isinstance(other, Term) and str(self.year) == str(other.year) and self.session == other.session
 
 Term.Session = Session # backwards compatibility 
 
@@ -189,7 +189,7 @@ class Course(object):
         return '<Course {} ({})>'.format(self.crn, repr(self.term))
 
     def __eq__(self, other):
-        return (self.crn == other.crn and self.term == other.term) 
+        return isinstance(other, Course) and self.crn == other.crn and self.term == other.term
 
 """
 Applications
