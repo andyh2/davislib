@@ -199,7 +199,10 @@ class Registrar(Application):
                         cell.contents[i] = c.strip()
 
                 if item == 'Subject Area:':
-                    attrs['subject'] = cell.contents[1]
+                    subject = cell.contents[1]
+                    if subject.endswith(';'):
+                        subject = subject[:-1]
+                    attrs['subject'] = subject
 
                 elif item == 'Instructor:':
                     attrs['instructor'] = cell.contents[4]
