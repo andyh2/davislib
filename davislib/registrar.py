@@ -158,7 +158,89 @@ class Registrar(Application):
                 params[ge_areas.value] = 'Y'
 
         return params
-        
+
+    def _parse_course_detail_cell(self, cell, term):
+        """
+        Returns tuple (key, value) representing cell contents
+
+        Parameters:
+            cell: BeautifulSoup tag representing table cell from course detail page
+
+        """
+        strong = cell.find('strong')
+        if not strong:
+            return None
+
+        try:
+            item = strong.string.strip()
+        except AttributeError:
+            item = strong.contents[0].strip()
+        for i, c in enumerate(cell.contents):
+            # Strip whitespace from all text elements
+            strip_op = getattr(c, "strip", None)
+            if callable(strip_op):
+                cell.contents[i] = c.strip()
+
+        if item == 'Subject Area:':
+            subject = cell.contents[1]
+            if subject.endswith(';'):
+                subject = subject[:-1]
+            return ('subject', subject)
+
+        elif item == 'Instructor:':
+            return ('instructor', cell.contents[4])
+
+        elif item == 'Units:':
+            units = None
+            try:
+                units = float(cell.contents[2])
+            except ValueError:
+                unit_range = cell.contents[2].split(' TO ') # Units are also provided as range
+                if len(unit_range) == 1:
+                    unit_range = cell.contents[2].split(' OR ') # OR was used in previous years
+                
+                if len(unit_range) == 2:
+                    units = tuple([float(n) for n in unit_range])
+
+                else: # Can't parse units; return raw string
+                    units = cell.contents[2]
+            return ('units', units)
+
+        elif 'New GE Credit' in item:
+            ge_areas = []
+            for ge_content in cell.contents[1:]:
+                if isinstance(ge_content, str) and len(ge_content):
+                    ge_areas.append(ge_content)
+            return ('ge_areas', ge_areas)
+
+        elif item == 'Available Seats:':
+            return ('available_seats', int(cell.contents[1]))
+
+        elif item == 'Maximum Enrollment:':
+            return ('max_enrollment', int(cell.contents[1]))
+
+        elif item == 'Final Exam:':
+            date = '{0} {1}'.format(term.year, ' '.join(cell.contents[1].split())) 
+            final_exam = None
+            try:
+                final_exam = datetime.datetime.strptime(date, '%Y %A, %B %d at %I:%M %p')
+            except ValueError:
+                final_exam = 'See Instructor'
+            return ('final_exam', final_exam)
+
+        elif item == 'Description:':
+            return ('description', cell.contents[3])
+
+        elif item == 'Course Drop:':
+            drop_text = cell.contents[1]
+            match = re.match(r'^([0-9]+)', drop_text)
+            drop_time = None
+            if match:
+                drop_time = int(match.group(1))
+            else:
+                drop_time = drop_text
+            return ('drop_time', drop_time)
+
     def _parse_course(self, course_html, term):
         if 'alert(' in course_html:
             # registrar uses alert message to indicate bad query
@@ -186,65 +268,11 @@ class Registrar(Application):
         attrs['max_enrollment'] = None
         # Simple key, value attributes
         for cell in soup.find_all('td'):
-            strong = cell.find('strong')
-            if strong:
-                try:
-                    item = strong.string.strip()
-                except AttributeError:
-                    item = strong.contents[0].strip()
-                for i, c in enumerate(cell.contents):
-                    # Strip whitespace from all text elements
-                    strip_op = getattr(c, "strip", None)
-                    if callable(strip_op):
-                        cell.contents[i] = c.strip()
+            contents = self._parse_course_detail_cell(cell, term)
+            if contents:
+                key, value = contents
 
-                if item == 'Subject Area:':
-                    subject = cell.contents[1]
-                    if subject.endswith(';'):
-                        subject = subject[:-1]
-                    attrs['subject'] = subject
-
-                elif item == 'Instructor:':
-                    attrs['instructor'] = cell.contents[4]
-
-                elif item == 'Units:':
-                    try:
-                        attrs['units'] = float(cell.contents[2])
-                    except ValueError:
-                        range_ = cell.contents[2].split(' TO ') # Units are also provided as range
-                        if len(range_) == 2:
-                            attrs['units'] = tuple([float(n) for n in range_])
-                        else: # Can't parse units
-                            attrs['units'] = cell.contents[2]
-
-                elif 'New GE Credit' in item:
-                    for ge_content in cell.contents[1:]:
-                        if isinstance(ge_content, str) and len(ge_content):
-                            attrs['ge_areas'].append(ge_content)
-
-                elif item == 'Available Seats:':
-                    attrs['available_seats'] = int(cell.contents[1])
-
-                elif item == 'Maximum Enrollment:':
-                    attrs['max_enrollment'] = int(cell.contents[1])
-
-                elif item == 'Final Exam:':
-                    date = '{0} {1}'.format(term.year, ' '.join(cell.contents[1].split())) 
-                    try:
-                        attrs['final_exam'] = datetime.datetime.strptime(date, '%Y %A, %B %d at %I:%M %p')
-                    except ValueError:
-                        attrs['final_exam'] = 'See Instructor'
-
-                elif item == 'Description:':
-                    attrs['description'] = cell.contents[3]
-
-                elif item == 'Course Drop:':
-                    drop_text = cell.contents[1]
-                    match = re.match(r'^([0-9]+)', drop_text)
-                    if match:
-                        attrs['drop_time'] = int(match.group(1))
-                    else:
-                        attrs['drop_time'] = drop_text
+                attrs[key] = value
 
         # Meeting times
         attrs['meetings'] = list()

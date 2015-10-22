@@ -177,7 +177,12 @@ class Course(object):
 
         #: Drop time string
         #: e.g. '20 Day Drop'
-        self.drop_time = attrs['drop_time']
+        try:
+            self.drop_time = attrs['drop_time']
+        except KeyError as e:
+            # Some old courses do not contain drop time attribute
+            self.drop_time = None
+            pass
 
     def __str__(self):
         return '{}: {} -- CRN {} ({})'.format(self.name, 
