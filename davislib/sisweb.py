@@ -3,8 +3,10 @@ davislib.sisweb
 
 This moduile provides an interface to the UC Davis Student Information service
 """
-from .models import ProtectedApplication, Term
+from .models import Course, ProtectedApplication, Term
 from bs4 import BeautifulSoup
+from collections import OrderedDict
+from urllib.parse import urlencode
 import requests
 import re
 
@@ -20,6 +22,9 @@ class Sisweb(ProtectedApplication):
     REGISTRATION_TERM_SELECT_ENDPOINT='/bwskflib.P_SelDefTerm'
     REGISTRATION_TERM_STORE_ENDPOINT='/bwcklibs.P_StoreTerm'
     COURSE_SCHEDULE_ENDPOINT='/bwskfshd.P_CrseSchdDetl'
+    COURSE_LOOKUP_ENDPOINT = '/bwckgens.p_proc_term_date'
+    COURSE_QUERY_ENDPOINT = '/bwskfcls.P_GetCrse'
+    COURSE_SEARCH_ENDPOINT = '/bwskfcls.p_sel_crse_search'
 
     def request(self, method, base, endpoint, **kwargs):
         """
@@ -75,6 +80,102 @@ class Sisweb(ProtectedApplication):
             terms.append(Term(term[0:4], term[4:]))
 
         return terms
+
+    def course_query(self, term, subject, 
+        number=None, title=None, credit_range=('', ''), start=0, end=0, days=None):
+        self.get(self.MAIN_MENU_ENDPOINT)
+        self.get(self.COURSE_SEARCH_ENDPOINT)
+
+        params = [
+            ('p_calling_proc', 'P_CrseSearch'),
+            ('p_term', term.code), 
+            ('p_by_date', 'Y'),
+            ('p_from_date', ''),
+            ('p_to_date', '')
+        ]
+
+        r_lookup = self.post(self.COURSE_LOOKUP_ENDPOINT, data=urlencode(params))
+
+        if start > 12:
+            begin_ap = 'p'
+        else:
+            begin_ap = 'a'
+
+        if end > 12:
+            end_ap = 'p'
+        else:
+            end_ap = 'a'
+
+        params = [
+            ('term_in', term.code),
+            ('sel_subj', 'dummy'),
+            ('sel_day', 'dummy'),
+            ('sel_schd', 'dummy'),
+            ('sel_insm', 'dummy'),
+            ('sel_camp', 'dummy'),
+            ('sel_levl', 'dummy'),
+            ('sel_sess', 'dummy'),
+            ('sel_instr', 'dummy'),
+            ('sel_ptrm', 'dummy'),
+            ('sel_attr', 'dummy'),
+            ('sel_subj', subject),
+            ('sel_crse', ''),
+            ('sel_title', ''),
+            ('sel_from_cred', credit_range[0]),
+            ('sel_to_cred', credit_range[1]),
+            ('begin_hh', start % 12),
+            ('begin_mi', 0),
+            ('begin_ap', begin_ap),
+            ('end_hh', end % 12),
+            ('end_mi', 0),
+            ('end_ap', end_ap)]
+
+        r = self.post(self.COURSE_QUERY_ENDPOINT, data=urlencode(params))
+
+        soup = BeautifulSoup(r.text, 'html.parser')
+        course_table = None
+        try:
+            course_table = soup.find_all('table', attrs={'class': 'datadisplaytable'})[0]
+        except IndexError:
+            return []
+
+        colnames = []
+        headings = iter(course_table.find_all('th'))
+        next(headings) # Skip first header; it is just the subject name, not a col header
+
+        for header_cell in headings:
+            colnames.append(header_cell.text)
+
+        courses = []
+        for row in course_table.find_all('tr'):
+            course_attrs = {'term': term}   
+            for idx, cell in enumerate(row.find_all('td', attrs={'class': 'dddefault'})):
+                colname = colnames[idx]
+                if colname == 'CRN':
+                    course_attrs['crn'] = cell.text
+                elif colname == 'Subj':
+                    course_attrs['subject_code'] = cell.text
+                elif colname == 'Crse':
+                    course_attrs['number'] = cell.text
+                elif colname == 'Sec':
+                    course_attrs['section'] = cell.text
+                elif colname == 'Title':
+                    course_attrs['title'] = cell.text
+                elif colname == 'Instructor':
+                    instructor = cell.text
+                    if instructor[-4:] == ' (P)':
+                        instructor = instructor[:-4]
+                    course_attrs['instructor'] = instructor
+
+            if 'crn' not in course_attrs or not course_attrs['crn'].strip():
+                continue
+
+            course_attrs['name'] = '{0} {1}'.format(course_attrs['subject_code'], 
+                course_attrs['number'])
+
+            courses.append(course_attrs)
+
+        return [Course(**i) for i in courses]
 
     def terms_enrolled(self):
         """

@@ -73,6 +73,7 @@ class Term(object):
     def code(self):
         """
         Returns term code, used by applications to identify term
+        e.g. 201510
         """
         return '{0}{1}'.format(self.year, self.session.value)
     
@@ -123,66 +124,62 @@ class Course(object):
 
         #: Course name string 
         #: e.g. 'ECS 040'
-        self.name = attrs['name']
+
+        self.name = attrs.get('name', None)
         
         #: Course number
         #: e.g. '040'
-        self.number = attrs['number']
+        self.number = attrs.get('number', None)
         
         #: Section code string 
         #: e.g. 'A01'
-        self.section = attrs['section']
+        self.section = attrs.get('section', None)
 
         #: Course title string 
         #: e.g. 'Intro to Programming'
-        self.title = attrs['title']
+        self.title = attrs.get('title', None)
 
         #: Number of units, scalar float or tuple (low, hi) 
         #: e.g. 2.5 or (1.0,5.0)
-        self.units = attrs['units']
+        self.units = attrs.get('units', None)
 
         #: Instructor name string
         #: e.g. 'Sean Davis'
-        self.instructor = attrs['instructor']
+        self.instructor = attrs.get('instructor', None)
 
         #: Subject name string
         #: e.g. 'Engineering Computer Science'
-        self.subject = attrs['subject']
+        self.subject = attrs.get('subject', None)
 
         #: List of GE credit satisfied
         #: e.g. ['Arts & Humanities', 'Oral Literacy']
-        self.ge_areas = attrs['ge_areas']
+        self.ge_areas = attrs.get('ge_areas', None)
 
         #: Number of available seats
         #: e.g. 30
-        self.available_seats = attrs['available_seats']
+        self.available_seats = attrs.get('available_seats', None)
 
         #: Maximum enrollment number
         #: e.g. 99
-        self.max_enrollment = attrs['max_enrollment']
+        self.max_enrollment = attrs.get('max_enrollment', None)
 
         #: Meetings, as list of meetings represented as dictionaries
         #: e.g. [
         #:        {'days': 'TR', 'hours': '10:30 - 11:50 AM', 'location': 'Storer Hall 1322'}]
         #:        ...
         #:      ]
-        self.meetings = attrs['meetings']
+        self.meetings = attrs.get('meetings', None)
 
         #: Course description string
-        self.description = attrs['description']
+        self.description = attrs.get('description', None)
 
         #: Final exam time, as datetime.datetime object 
         #: or string 'See Instructor'
-        self.final_exam = attrs['final_exam']
+        self.final_exam = attrs.get('final_exam', None)
 
         #: Drop time string
         #: e.g. '20 Day Drop'
-        try:
-            self.drop_time = attrs['drop_time']
-        except KeyError as e:
-            # Some old courses do not contain drop time attribute
-            self.drop_time = None
-            pass
+        self.drop_time = attrs.get('drop_time', None)
 
     def __str__(self):
         return '{}: {} -- CRN {} ({})'.format(self.name, 
