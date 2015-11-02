@@ -163,6 +163,18 @@ class Course(object):
         #: e.g. 99
         self.max_enrollment = attrs.get('max_enrollment', None)
 
+        #: (Sisweb only)
+        self.wl_capacity = attrs.get('wl_capacity', None)
+
+        #: (Sisweb only)
+        self.wl_length = attrs.get('wl_length', None)
+
+        #: (Sisweb only)
+        self.xl_capacity = attrs.get('xl_capacity', None)
+
+        #: (Sisweb only)
+        self.xl_length = attrs.get('xl_length', None)
+
         #: Meetings, as list of meetings represented as dictionaries
         #: e.g. [
         #:        {'days': 'TR', 'hours': '10:30 - 11:50 AM', 'location': 'Storer Hall 1322'}]
@@ -180,6 +192,10 @@ class Course(object):
         #: Drop time string
         #: e.g. '20 Day Drop'
         self.drop_time = attrs.get('drop_time', None)
+
+        #: Prerequesite string
+        #: e.g. 'course 40 and 60'
+        self.prerequisites = attrs.get('prerequisites', None)
 
     def __str__(self):
         return '{}: {} -- CRN {} ({})'.format(self.name, 

@@ -161,6 +161,18 @@ class Sisweb(ProtectedApplication):
                     course_attrs['section'] = cell.text
                 elif colname == 'Title':
                     course_attrs['title'] = cell.text
+                elif colname == 'Cap':
+                    course_attrs['max_enrollment'] = cell.text
+                elif colname == 'Rem':
+                    course_attrs['available_seats'] = cell.text
+                elif colname == 'WL Cap':
+                    course_attrs['wl_capacity'] = cell.text
+                elif colname == 'WL Act':
+                    course_attrs['wl_length'] = cell.text
+                elif colname == 'XL Cap':
+                    course_attrs['xl_capacity'] = cell.text
+                elif colname == 'XL Act':
+                    course_attrs['xl_length'] = cell.text
                 elif colname == 'Instructor':
                     instructor = cell.text
                     if instructor[-4:] == ' (P)':
