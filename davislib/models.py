@@ -319,7 +319,7 @@ class ProtectedApplication(Application):
             if '<div id="msg" class="success"' in auth_page.text:
                 return # already logged in
 
-            soup = BeautifulSoup(auth_page.text)
+            soup = BeautifulSoup(auth_page.text, 'html.parser')
             login_form = soup.find("form", id="fm1")
 
             data = dict()
