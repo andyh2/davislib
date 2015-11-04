@@ -5,6 +5,7 @@ This module provides an interface to the University Registrar
 """
 from .models import Application, Course, Term
 from bs4 import BeautifulSoup
+from bs4.element import NavigableString
 import datetime
 import re
 from enum import Enum
@@ -241,7 +242,9 @@ class Registrar(Application):
                 drop_time = drop_text
             return ('drop_time', drop_time)
         elif item == 'Prerequisite:':
-            return ('prerequisites', cell.contents[3])
+            prerequisite = cell.contents[3]
+            if isinstance(prerequisite, str):
+                return ('prerequisites', prerequisite)
 
     def _parse_course(self, course_html, term):
         if 'alert(' in course_html:
