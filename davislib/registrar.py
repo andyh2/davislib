@@ -240,6 +240,8 @@ class Registrar(Application):
             else:
                 drop_time = drop_text
             return ('drop_time', drop_time)
+        elif item == 'Prerequisite:':
+            return ('prerequisites', cell.contents[3])
 
     def _parse_course(self, course_html, term):
         if 'alert(' in course_html:
