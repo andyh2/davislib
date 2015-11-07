@@ -246,6 +246,29 @@ class Registrar(Application):
             if isinstance(prerequisite, str):
                 return ('prerequisites', prerequisite)
 
+    def _parse_meeting_times(self, times):
+        times = times.string.split(' - ')
+        try:
+            start, end = times
+            start_hour, start_minute = [int(t) for t in start.split(':')]
+            end_hour, end_minute_and_ampm = end.split(':')
+            end_hour = int(end_hour)
+            end_minute, ampm = end_minute_and_ampm.split(' ')
+            end_minute = int(end_minute)
+
+            if ampm == 'PM':
+                if start_hour < 9:
+                    # this condition accounts for courses that start in the morning and end in afternoon
+                    start_hour += 12
+                if end_hour < 12:
+                    end_hour += 12
+            start = datetime.timedelta(hours=start_hour, minutes=start_minute)
+            end = datetime.timedelta(hours=end_hour, minutes=end_minute)
+            return (start, end)
+        except ValueError:
+            # Meeting times could not be parsed
+            pass
+
     def _parse_course(self, course_html, term):
         if 'alert(' in course_html:
             # registrar uses alert message to indicate bad query
@@ -285,10 +308,10 @@ class Registrar(Application):
         meeting_rows = meetings_table.find_all('tr')[1:] # all rows after the header
         for row in meeting_rows:
             cells = row.find_all('td')
-            days, hours, location = cells
+            days, times, location = cells
             meeting = dict()
             meeting['days'] = days.string
-            meeting['hours'] = hours.string
+            meeting['times'] = self._parse_meeting_times(times)
             meeting['location'] = location.string.strip()
             attrs['meetings'].append(meeting)
 
