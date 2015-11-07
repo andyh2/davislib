@@ -7,8 +7,11 @@ from .models import ProtectedApplication, Course, Term
 from bs4 import BeautifulSoup
 import re
 import itertools
+import logging
+import json
+import requests
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class RegistrationError(Exception):
     pass
@@ -21,10 +24,147 @@ class ScheduleBuilder(ProtectedApplication):
     REGISTER_ENDPOINT='/addCourseRegistration.cfm'
     ADD_COURSE_ENDPOINT='/addCourseToSchedule.cfm'
     REMOVE_COURSE_ENDPOINT='/removeCourseFromSchedule.cfm'
+    COURSE_SEARCH_ENDPOINT='/course_search/course_search_results.cfm'
     HOME_ENDPOINT='/index.cfm'
     REGISTRATION_ERRORS=['You are already enrolled or waitlisted for this course',
                          'Registration is not yet available for this term',
                          'Could not register you for this course']
+
+    def _normalize_course_query_response(self, json_obj):
+        response_items = [dict(zip(json_obj['COLUMNS'], values)) for values in json_obj['DATA']]
+        for idx, item_dict in enumerate(response_items):
+            nrml_item = dict()
+            for key, value in item_dict.items():
+                if isinstance(value, str) and value.startswith('{"QUERY":'):
+                    nrml_item[key] = self._normalize_course_query_response(json.loads(value)['QUERY'])
+                else:
+                    nrml_item[key] = value
+
+            response_items[idx] = nrml_item
+
+        return response_items
+
+    def _course_from_query_response(self, term, response):
+        """
+        Returns Course object populated by parsing response
+        """
+        units_low, units_hi = float(response['UNITS_LOW']), float(response['UNITS_HIGH'])
+        if units_low > units_hi: 
+            # Yes, this is an actual response case...
+            # Occurs when a course has a constant # of units.
+            # I think units_hi should equal units_low when actual units is constant.
+            units_hi = units_low 
+
+        instructor_name = instructor_email = None
+        try:
+            instructor_meta = next(instr for instr in response['INSTRUCTORS'] if instr['PRIMARY_IND'] == 'Y')
+            instructor_name = '{} {}'.format(instructor_meta['FIRST_NAME'], instructor_meta['LAST_NAME'])
+            instructor_email = instructor_meta['EMAIL']
+        except StopIteration:
+            # No instructor specified
+            pass
+
+        ge_areas = None
+        try:
+            area_codes = filter(None, response['GE3CREDIT'].split(','))
+            ge_areas = [GE_AREA_NAMES_BY_SB_CODE[area_code] for area_code in area_codes]
+        except KeyError as e:
+            logging.exception('Unrecognized GE code')
+
+        meetings = list()
+        for meeting in response['COURSEMEETINGDATA']:
+            days = meeting['WEEKDAYS'].replace(',', '')
+            times = None
+            try:
+                begin_hour, begin_minutes = meeting['BEGIN_TIME'][:2], meeting['BEGIN_TIME'][2:]
+                end_hour, end_minutes = meeting['END_TIME'][:2], meeting['END_TIME'][2:]
+                begin = timedelta(hours=int(begin_hour), minutes=int(begin_minutes))
+                end = timedelta(hours=int(end_hour), minutes=int(end_minutes))
+                times = (begin, end)
+            except TypeError:
+                # times are None, indicating TBA
+                pass
+
+            meeting = {
+                'days': days,
+                'times': times,
+                'location': '{} {}'.format(meeting['BLDG_DESC'], meeting['ROOM']),
+                'type': meeting['MEET_TYPE_DESC_SHORT']
+            }
+            meetings.append(meeting)
+        
+        final_exam = None
+        try:
+            final_exam = datetime.strptime(response['FINALEXAMSTARTDATE'], '%B, %d %Y %H:%M:%S')
+        except TypeError:
+            # No final exam
+            pass
+
+        return Course(
+            term=term,
+            crn=response['PASSEDCRN'],
+            subject_code=response['SUBJECT_CODE'],
+            name='{} {}'.format(response['SUBJECT_CODE'], response['COURSE_NUMBER']),
+            number=response['COURSE_NUMBER'],
+            section=response['SEC'],
+            title=response['TITLE'],
+            description=response['DESCRIPTION'],
+            instructor_consent_required=bool(int(response['CONSENTOFINSRUCTORREQUIRED'])),
+            units=(units_low, units_hi),
+            instructor=instructor_name,
+            instructor_email=instructor_email,
+            ge_areas=ge_areas,
+            available_seats=response['BLEND_SEATS_AVAIL'],
+            wl_length=response['BLEND_WAIT_COUNT'],
+            meetings=meetings,
+            final_exam=final_exam,
+            drop_time=response['ALLOWEDDROPDESC'],
+            prerequisites=response['PREREQUISITES'])
+
+    def course_query(self, term, **kwargs):
+        """
+        Returns list of course objects for a provided query 
+        Parameters:
+            term: Term object
+
+            (kwarg) course_number: course number
+            (kwarg) subject: code, length 3
+            (kwarg) instructor: first OR last name (ScheduleBuilder does not support full name search. What a shame...)
+            (kwarg) start: earliest desired start time, hour, 0-23
+            (kwarg) end: latest desired end time, hour, 0-23
+            (kwarg) level: unit range string, i.e., '001-099', ..., '300-399'
+            (kwarg) units: 1-12
+            }
+        """
+        data = {
+            'course_number': kwargs.get('course_number', ''),
+            'subject': kwargs.get('subject', ''),
+            'instructor': kwargs.get('instructor', ''),
+            'course_start_eval': 'After', # todo verify vs 'at'
+            'course_start_time': kwargs.get('start', '-'), # todo parse arg into correct time
+            'course_end_eval': 'Before', # todo verify vs 'at'
+            'course_end_time': kwargs.get('end', '-'), # todo parse arg into correct time,
+            'course_level': kwargs.get('level', '-'),
+            'course_units': kwargs.get('units', '-'),
+            'course_status': 'ALL',
+            'sortBy': '',
+            'showMe': '',
+            'runMe': '1',
+            'clearMe': '1',
+            'termCode': term.code,
+            'expandFilters': ''
+        }
+        try:
+            r = self.post(self.COURSE_SEARCH_ENDPOINT, data=data)
+            results = json.loads(r.text)['Results'] # {'COLUMNS': [...], 'DATA': [[col1_data, ...], ...}
+        except KeyError:
+            r = self.post(self.COURSE_SEARCH_ENDPOINT, data=data)
+            results = json.loads(r.text)['Results']
+
+        nrml_course_responses = self._normalize_course_query_response(results)
+
+        return [self._course_from_query_response(term, resp) for resp in nrml_course_responses]
+
     def registered_courses(self, term):
         """
         Returns list of CRNs of registered courses for term
@@ -185,3 +325,17 @@ class ScheduleBuilder(ProtectedApplication):
         for e in self.REGISTRATION_ERRORS:
             if e in r.text:
                 raise RegistrationError(e)
+
+GE_AREA_NAMES_BY_SB_CODE = {
+    'AH': 'Arts & Humanities',
+    'SE': 'Science & Engineering',
+    'SS': 'Social Sciences', 
+    'ACGH': 'American Cultures, Governance & History',
+    'DD': 'Domestic Diversity',
+    'OL': 'Oral Literacy',
+    'QL': 'Quantitative Literacy', 
+    'SL': 'Scientific Literacy', 
+    'VL': 'Visual Literacy',
+    'WC': 'World Cultures',
+    'WE': 'Writing Experience'
+}

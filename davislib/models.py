@@ -147,6 +147,17 @@ class Course(object):
         #: e.g. 'Sean Davis'
         self.instructor = attrs.get('instructor', None)
 
+        #: Instructor email address
+        #: e.g. 'bob@ucdavis.edu'
+        self.instructor_email = attrs.get('instructor_email', None)
+
+        #: Instructor consent required, boolean or None
+        self.instructor_consent_required = attrs.get('instructor_consent_required', None)
+
+        #: Subject code
+        #: e.g. 'ECS'
+        self.subject_code = attrs.get('subject_code', None)
+
         #: Subject name string
         #: e.g. 'Engineering Computer Science'
         self.subject = attrs.get('subject', None)
@@ -163,7 +174,7 @@ class Course(object):
         #: e.g. 99
         self.max_enrollment = attrs.get('max_enrollment', None)
 
-        #: (Sisweb only)
+        #: (Sisweb / ScheduleBuilder only)
         self.wl_capacity = attrs.get('wl_capacity', None)
 
         #: (Sisweb only)
@@ -177,7 +188,7 @@ class Course(object):
 
         #: Meetings, as list of meetings represented as dictionaries
         #: e.g. [
-        #:        {'days': 'TR', 'hours': '10:30 - 11:50 AM', 'location': 'Storer Hall 1322'}]
+        #:        {'days': 'TR', 'times': (start timedelta from midnight, end timedelta from midnight), 'location': 'Storer Hall 1322', 'type': None or 'LEC' or 'DIS'}]
         #:        ...
         #:      ]
         self.meetings = attrs.get('meetings', None)
