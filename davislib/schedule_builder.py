@@ -16,6 +16,15 @@ from datetime import datetime, timedelta
 class RegistrationError(Exception):
     pass
 
+def term_sensitive(func):
+    def visit_sb_index(self, term, *args, **kwargs):
+        if self.last_term_visited != term:
+            self.get('{}?termCode={}'.format(self.HOME_ENDPOINT, term.code))
+            self.last_term_visited = term
+
+        return func(self, term, *args, **kwargs)
+    return visit_sb_index
+
 class ScheduleBuilder(ProtectedApplication):
     """
     Interface to Schedule Builder
@@ -29,6 +38,12 @@ class ScheduleBuilder(ProtectedApplication):
     REGISTRATION_ERRORS=['You are already enrolled or waitlisted for this course',
                          'Registration is not yet available for this term',
                          'Could not register you for this course']
+    
+    def __init__(self, *args, **kwargs):
+        super(__class__, self).__init__(*args, **kwargs)
+
+        self.last_term_visited = None
+
 
     def _normalize_course_query_response(self, json_obj):
         response_items = [dict(zip(json_obj['COLUMNS'], values)) for values in json_obj['DATA']]
@@ -92,7 +107,7 @@ class ScheduleBuilder(ProtectedApplication):
                 'type': meeting['MEET_TYPE_DESC_SHORT']
             }
             meetings.append(meeting)
-        
+
         final_exam = None
         try:
             final_exam = datetime.strptime(response['FINALEXAMSTARTDATE'], '%B, %d %Y %H:%M:%S')
@@ -120,7 +135,8 @@ class ScheduleBuilder(ProtectedApplication):
             final_exam=final_exam,
             drop_time=response['ALLOWEDDROPDESC'],
             prerequisites=response['PREREQUISITES'])
-
+    
+    @term_sensitive
     def course_query(self, term, **kwargs):
         """
         Returns list of course objects for a provided query 
@@ -163,7 +179,8 @@ class ScheduleBuilder(ProtectedApplication):
 
         nrml_course_responses = self._normalize_course_query_response(results)
 
-        return [self._course_from_query_response(term, resp) for resp in nrml_course_responses]
+        courses = [self._course_from_query_response(term, resp) for resp in nrml_course_responses]
+        return courses
 
     def registered_courses(self, term):
         """
@@ -246,6 +263,7 @@ class ScheduleBuilder(ProtectedApplication):
 
         return schedules
 
+    @term_sensitive
     def add_course(self, term, schedule, crn):
         """
         Adds course to schedule
@@ -262,6 +280,7 @@ class ScheduleBuilder(ProtectedApplication):
 
         self.get(self.ADD_COURSE_ENDPOINT, params=query)
 
+    @term_sensitive
     def remove_course(self, term, schedule, crn):
         """
         Removes course from schedule
@@ -277,7 +296,7 @@ class ScheduleBuilder(ProtectedApplication):
                  '_': int(float(time.time()) * 10**3)}
 
         self.get(self.REMOVE_COURSE_ENDPOINT, params=query)
-    
+        
     def register_schedule(self, term, schedule, allow_waitlisting=True, at=None):
         """
         Registers all classes in provided schedule
@@ -292,6 +311,7 @@ class ScheduleBuilder(ProtectedApplication):
         items = self.schedules(term, include_units=True)[schedule]
         self.register_courses(term, schedule, items, allow_waitlisting, at)
 
+    @term_sensitive
     def register_courses(self, term, schedule, items, allow_waitlisting=True, at=None):
         """
         Registers all classes provided in 'items'
