@@ -52,7 +52,7 @@ class Registrar(Application):
             term: Term object
             kwargs:
                 crn: five digit course reference number
-                name: partial or complete course name, 
+                name: partial or complete course name,
                              e.g. 'ASA' or 'ASA 001'
                 title: course title, e.g. Intro to Programming
                 instructor: first or last name
@@ -87,8 +87,8 @@ class Registrar(Application):
         return list(set(courses)) # CRNs are unique
 
     def _map_params(self, term,
-        crn=None, 
-        name=None, 
+        crn=None,
+        name=None,
         title=None,
         instructor=None,
         subject=None,
@@ -101,9 +101,9 @@ class Registrar(Application):
         only_virtual=None,
         ge_areas=None):
         """
-        Maps the user-provided search query to a dictionary whose 
+        Maps the user-provided search query to a dictionary whose
         keys are identical to the registrar's form input names.
-        Used to submit the search form. 
+        Used to submit the search form.
         """#
         params = dict()
         params['termYear'], params['term'] = term.year, term.session.value
@@ -115,11 +115,11 @@ class Registrar(Application):
         params['course_title'] = title
         params['instructor'] = instructor
         params['subject'] = subject
-        
+
         # Course Times
         if start:
             params['course_start_eval'] = 'After'
-            if start < 12: 
+            if start < 12:
                 # AM classes start on the hour
                 params['course_start_time'] = '{}:00'.format(start)
             else:
@@ -141,10 +141,10 @@ class Registrar(Application):
 
         if only_open:
             params['course_status'] = 'Open'
-        
+
         if level:
             params['course_level'] = level.value
-        
+
         params['course_units'] = units
 
         if only_virtual:
@@ -153,7 +153,7 @@ class Registrar(Application):
         if ge_areas:
             try:
                 for area in ge_areas:
-                    params[area.value[0]] = 'Y' 
+                    params[area.value[0]] = 'Y'
             except TypeError: # TypeError due to ge_credit not being iterable
                 # Only one ge_credit value supplied
                 params[ge_areas.value] = 'Y'
@@ -199,7 +199,7 @@ class Registrar(Application):
                 unit_range = cell.contents[2].split(' TO ') # Units are also provided as range
                 if len(unit_range) == 1:
                     unit_range = cell.contents[2].split(' OR ') # OR was used in previous years
-                
+
                 if len(unit_range) == 2:
                     units = tuple([float(n) for n in unit_range])
 
@@ -221,7 +221,7 @@ class Registrar(Application):
             return ('max_enrollment', int(cell.contents[1]))
 
         elif item == 'Final Exam:':
-            date = '{0} {1}'.format(term.year, ' '.join(cell.contents[1].split())) 
+            date = '{0} {1}'.format(term.year, ' '.join(cell.contents[1].split()))
             final_exam = None
             try:
                 final_exam = datetime.datetime.strptime(date, '%Y %A, %B %d at %I:%M %p')
@@ -279,11 +279,14 @@ class Registrar(Application):
         attrs = dict()
 
         header = soup.find('h1')
-        attrs['title'] = header.contents[1][3:]
+        title_components = header.contents[1][3:].split()
+        # Accounting for beautifulsoup output where ampersands in text are suffixed with ';'
+        title_components = list(map(lambda title: re.sub(r'(.+&.+);$', r'\1', title), title_components))
+        attrs['title'] = ' '.join(title_components)
         full_name = str(header.find('strong').string)
 
         name_components = full_name.split(' ')
-        attrs['name'] = '{} {}'.format(*name_components[:2])        
+        attrs['name'] = '{} {}'.format(*name_components[:2])
         attrs['number'] = name_components[1]
         attrs['section'] = None
         if len(name_components) == 3:
@@ -322,9 +325,9 @@ class QueryOptions(object):
         """
         Enum representation of all GE credit areas
         """
-        AH = ('G3AH', 'Arts & Humanities') 
+        AH = ('G3AH', 'Arts & Humanities')
         SE = ('G3SE', 'Science & Engineering')
-        SS = ('G3SS', 'Social Sciences') 
+        SS = ('G3SS', 'Social Sciences')
         ACGH = ('G3CGH', 'American Culture, Government, and History')
         DD = ('G3DD', 'Domestic Diversity')
         OL = ('G3O', 'Oral Literacy')
