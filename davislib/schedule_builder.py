@@ -38,12 +38,11 @@ class ScheduleBuilder(ProtectedApplication):
     REGISTRATION_ERRORS=['You are already enrolled or waitlisted for this course',
                          'Registration is not yet available for this term',
                          'Could not register you for this course']
-    
+
     def __init__(self, *args, **kwargs):
         super(__class__, self).__init__(*args, **kwargs)
 
         self.last_term_visited = None
-
 
     def _normalize_course_query_response(self, json_obj):
         response_items = [dict(zip(json_obj['COLUMNS'], values)) for values in json_obj['DATA']]
@@ -64,11 +63,11 @@ class ScheduleBuilder(ProtectedApplication):
         Returns Course object populated by parsing response
         """
         units_low, units_hi = float(response['UNITS_LOW']), float(response['UNITS_HIGH'])
-        if units_low > units_hi: 
+        if units_low > units_hi:
             # Yes, this is an actual response case...
             # Occurs when a course has a constant # of units.
             # I think units_hi should equal units_low when actual units is constant.
-            units_hi = units_low 
+            units_hi = units_low
 
         instructor_name = instructor_email = None
         try:
@@ -115,6 +114,12 @@ class ScheduleBuilder(ProtectedApplication):
             # No final exam
             pass
 
+        drop_time = response['ALLOWEDDROPDESC']
+        drop_days_match = re.match(r'^([0-9]+)', drop_time)
+        if drop_days_match:
+            drop_time = int(drop_days_match.group(1))
+
+
         return Course(
             term=term,
             crn=response['PASSEDCRN'],
@@ -133,13 +138,13 @@ class ScheduleBuilder(ProtectedApplication):
             wl_length=response['BLEND_WAIT_COUNT'],
             meetings=meetings,
             final_exam=final_exam,
-            drop_time=response['ALLOWEDDROPDESC'],
+            drop_time=drop_time,
             prerequisites=response['PREREQUISITES'])
-    
+
     @term_sensitive
     def course_query(self, term, **kwargs):
         """
-        Returns list of course objects for a provided query 
+        Returns list of course objects for a provided query
         Parameters:
             term: Term object
 
@@ -192,12 +197,12 @@ class ScheduleBuilder(ProtectedApplication):
         r = self.get(self.HOME_ENDPOINT, params=params)
         matches = re.finditer(r'CourseDetails.t(.+?).REGISTRATION_STATUS = "(Registered|Waitlisted)"', r.text)
         crns = list()
-        
+
         for match in matches:
             crns.append(match.group(1))
 
         return crns
-    
+
     def pass_times(self, term):
         """
         Returns tuple (datetime object for pass 1, datetime object for pass 2)
@@ -228,10 +233,10 @@ class ScheduleBuilder(ProtectedApplication):
         Returns dictionary of schedules with schedule names as keys and lists of CRNs as values
         Parameters:
             term: Term object
-            include_units: Optional boolean parameter. 
+            include_units: Optional boolean parameter.
                             If True, returned dictionary includies lists of tuple (CRN, units) as values.
-                            Useful if returned courses are used in registration, as both CRN and course 
-                            units are required. 
+                            Useful if returned courses are used in registration, as both CRN and course
+                            units are required.
         """
         params = {'termCode': term.code}
         r = self.get(self.HOME_ENDPOINT, params=params)
@@ -257,7 +262,7 @@ class ScheduleBuilder(ProtectedApplication):
                 crn = course_match.group(1)
                 if include_units:
                     units = int(course_match.group(2))
-                    schedules[name].append((crn, units))    
+                    schedules[name].append((crn, units))
                 else:
                     schedules[name].append(crn)
 
@@ -271,7 +276,7 @@ class ScheduleBuilder(ProtectedApplication):
             term: Term object
             schedule: Name of schedule
             crn: course registration number of course to be added
-        """ 
+        """
         query = {'Term': term.code,
                  'Schedule': schedule,
                  'CourseID': crn,
@@ -296,7 +301,7 @@ class ScheduleBuilder(ProtectedApplication):
                  '_': int(float(time.time()) * 10**3)}
 
         self.get(self.REMOVE_COURSE_ENDPOINT, params=query)
-        
+
     def register_schedule(self, term, schedule, allow_waitlisting=True, at=None):
         """
         Registers all classes in provided schedule
@@ -317,8 +322,8 @@ class ScheduleBuilder(ProtectedApplication):
         Registers all classes provided in 'items'
         Parameters:
             term: Term object
-            schedule: name of schedule containing courses. 
-            items: list of tuple (crn, units) 
+            schedule: name of schedule containing courses.
+            items: list of tuple (crn, units)
                     (note: tuples are provided in returned dictionary from ScheduleBuilder.schedules)
             allow_waitlisting: True/False, indicating if courses should be registered even if student will
                                             be placed on waitlist
@@ -338,7 +343,7 @@ class ScheduleBuilder(ProtectedApplication):
         if at:
             seconds = (at - datetime.now()).total_seconds()
             if seconds > 0:
-                time.sleep(seconds) 
+                time.sleep(seconds)
 
         r = self.get(self.REGISTER_ENDPOINT, params=query)
         # Error checking
@@ -349,12 +354,12 @@ class ScheduleBuilder(ProtectedApplication):
 GE_AREA_NAMES_BY_SB_CODE = {
     'AH': 'Arts & Humanities',
     'SE': 'Science & Engineering',
-    'SS': 'Social Sciences', 
+    'SS': 'Social Sciences',
     'ACGH': 'American Cultures, Governance & History',
     'DD': 'Domestic Diversity',
     'OL': 'Oral Literacy',
-    'QL': 'Quantitative Literacy', 
-    'SL': 'Scientific Literacy', 
+    'QL': 'Quantitative Literacy',
+    'SL': 'Scientific Literacy',
     'VL': 'Visual Literacy',
     'WC': 'World Cultures',
     'WE': 'Writing Experience'
