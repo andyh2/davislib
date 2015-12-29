@@ -73,6 +73,7 @@ class ScheduleBuilder(ProtectedApplication):
         try:
             instructor_meta = next(instr for instr in response['INSTRUCTORS'] if instr['PRIMARY_IND'] == 'Y')
             instructor_name = '{} {}'.format(instructor_meta['FIRST_NAME'], instructor_meta['LAST_NAME'])
+            instructor_name = instructor_name.strip()
             instructor_email = instructor_meta['EMAIL']
         except StopIteration:
             # No instructor specified
@@ -118,7 +119,6 @@ class ScheduleBuilder(ProtectedApplication):
         drop_days_match = re.match(r'^([0-9]+)', drop_time)
         if drop_days_match:
             drop_time = int(drop_days_match.group(1))
-
 
         return Course(
             term=term,
