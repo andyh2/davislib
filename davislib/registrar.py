@@ -230,7 +230,7 @@ class Registrar(Application):
             return ('final_exam', final_exam)
 
         elif item == 'Description:':
-            return ('description', cell.contents[3])
+            return ('description', cell.contents[3].replace('\n', ' ').strip())
 
         elif item == 'Course Drop:':
             drop_text = cell.contents[1]
@@ -282,7 +282,7 @@ class Registrar(Application):
         title_components = header.contents[1][3:].split()
         # Accounting for beautifulsoup output where ampersands in text are suffixed with ';'
         title_components = list(map(lambda title: re.sub(r'(.+&.+);$', r'\1', title), title_components))
-        attrs['title'] = ' '.join(title_components)
+        attrs['title'] = ' '.join([component.strip() for component in title_components if component.strip()])
         full_name = str(header.find('strong').string)
 
         name_components = full_name.split(' ')

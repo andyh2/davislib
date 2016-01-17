@@ -120,6 +120,10 @@ class ScheduleBuilder(ProtectedApplication):
         if drop_days_match:
             drop_time = int(drop_days_match.group(1))
 
+        if response['DESCRIPTION']:
+            response['DESCRIPTION'] = response['DESCRIPTION'].replace('\n', ' ').strip()
+        response['TITLE'] = response['TITLE'].strip()
+
         return Course(
             term=term,
             crn=response['PASSEDCRN'],
@@ -127,7 +131,7 @@ class ScheduleBuilder(ProtectedApplication):
             name='{} {}'.format(response['SUBJECT_CODE'], response['COURSE_NUMBER']),
             number=response['COURSE_NUMBER'],
             section=response['SEC'],
-            title=response['TITLE'],
+            title=response['TITLE'].strip(),
             description=response['DESCRIPTION'],
             instructor_consent_required=bool(int(response['CONSENTOFINSRUCTORREQUIRED'])),
             units=(units_low, units_hi),
