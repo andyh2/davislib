@@ -67,7 +67,7 @@ class Term(object):
         # Maps session string to Session object
         session = self.SESSION_MAPPINGS.get(session, session)
         self.session = self.Session(session)
-        self.year = year
+        self.year = int(year)
 
     @property
     def code(self):
