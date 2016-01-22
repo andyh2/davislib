@@ -100,10 +100,14 @@ class ScheduleBuilder(ProtectedApplication):
                 # times are None, indicating TBA
                 pass
 
+            location = meeting['BLDG_DESC']
+            if meeting['ROOM']:
+                location += ' ' + meeting['ROOM']
+
             meeting = {
                 'days': days,
                 'times': times,
-                'location': '{} {}'.format(meeting['BLDG_DESC'], meeting['ROOM']),
+                'location': location,
                 'type': meeting['MEET_TYPE_DESC_SHORT']
             }
             meetings.append(meeting)
