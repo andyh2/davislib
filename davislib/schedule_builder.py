@@ -123,9 +123,8 @@ class ScheduleBuilder(ProtectedApplication):
         drop_days_match = re.match(r'^([0-9]+)', drop_time)
         if drop_days_match:
             drop_time = int(drop_days_match.group(1))
-
         if response['DESCRIPTION']:
-            response['DESCRIPTION'] = response['DESCRIPTION'].replace('\n', ' ').strip()
+            response['DESCRIPTION'] = response['DESCRIPTION'].replace('\n', ' ').replace('\r', '').strip()
         response['TITLE'] = response['TITLE'].strip()
 
         return Course(

@@ -230,7 +230,7 @@ class Registrar(Application):
             return ('final_exam', final_exam)
 
         elif item == 'Description:':
-            return ('description', cell.contents[3].replace('\n', ' ').strip())
+            return ('description', cell.contents[3].replace('\n', ' ').replace('\r', '').strip())
 
         elif item == 'Course Drop:':
             drop_text = cell.contents[1]
