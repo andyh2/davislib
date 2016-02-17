@@ -243,6 +243,8 @@ class Registrar(Application):
             return ('drop_time', drop_time)
         elif item == 'Prerequisite:':
             prerequisite = cell.contents[3]
+            prerequisite = re.sub(r'\s+', ' ', prerequisite)
+
             if isinstance(prerequisite, str):
                 return ('prerequisites', prerequisite)
 
