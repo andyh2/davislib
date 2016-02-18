@@ -79,7 +79,7 @@ class ScheduleBuilder(ProtectedApplication):
             # No instructor specified
             pass
 
-        ge_areas = None
+        ge_areas = list()
         try:
             area_codes = filter(None, response['GE3CREDIT'].split(','))
             ge_areas = [GE_AREA_NAMES_BY_SB_CODE[area_code] for area_code in area_codes]

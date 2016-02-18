@@ -164,7 +164,7 @@ class Course(object):
 
         #: List of GE credit satisfied
         #: e.g. ['Arts & Humanities', 'Oral Literacy']
-        self.ge_areas = attrs.get('ge_areas', None)
+        self.ge_areas = attrs.get('ge_areas', list())
 
         #: Number of available seats
         #: e.g. 30
