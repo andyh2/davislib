@@ -25,7 +25,7 @@ class Registrar(Application):
     """
     BASE='https://registrar.ucdavis.edu'
     COURSE_DETAIL_ENDPOINT='/courses/search/course.cfm'
-    COURSE_SEARCH_ENDPOINT='/courses/search/course_search_results_mod8.cfm'
+    COURSE_SEARCH_ENDPOINT='/courses/search/course_search_results.cfm'
 
     def course_detail(self, term, crn):
         """
