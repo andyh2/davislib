@@ -29,7 +29,7 @@ class ScheduleBuilder(ProtectedApplication):
     """
     Interface to Schedule Builder
     """
-    BASE='https://students.my.ucdavis.edu/schedulebuilder'
+    BASE='https://my.ucdavis.edu/schedulebuilder'
     REGISTER_ENDPOINT='/addCourseRegistration.cfm'
     ADD_COURSE_ENDPOINT='/addCourseToSchedule.cfm'
     REMOVE_COURSE_ENDPOINT='/removeCourseFromSchedule.cfm'
