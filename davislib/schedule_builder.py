@@ -146,7 +146,7 @@ class ScheduleBuilder(ProtectedApplication):
             meetings=meetings,
             final_exam=final_exam,
             drop_time=drop_time,
-            prerequisites=re.sub(r'\s+', ' ', response['PREREQUISITES']))
+            prerequisites=re.sub(r'\s+', ' ', response['PREREQUISITES']) if response['PREREQUISITES'] else None)
 
     @term_sensitive
     def course_query(self, term, **kwargs):
